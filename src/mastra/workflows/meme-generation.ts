@@ -1,7 +1,8 @@
 import { createWorkflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import {
-  extractFrustrationsStep,
+  analyzeImageStep,
+  extractContentThemesStep,
   findBaseMemeStep,
   generateCaptionsStep,
   generateMemeStep,
@@ -9,9 +10,11 @@ import {
 
 export const memeGenerationWorkflow = createWorkflow({
   id: 'meme-generation',
-  description: 'Complete workflow to generate memes from workplace frustrations',
+  description: 'Complete workflow to generate memes from any kind of text or situation',
   inputSchema: z.object({
-    userInput: z.string().describe('Raw user input about work frustrations'),
+    userInput: z.string().describe('Raw user input about any topic or situation'),
+    contextualRequest: z.boolean().optional().describe('Whether this is a contextual request referencing previous content'),
+    previousContext: z.string().optional().describe('Previous meme context for contextual requests'),
   }),
   outputSchema: z.object({
     shareableUrl: z.string(),
@@ -21,7 +24,8 @@ export const memeGenerationWorkflow = createWorkflow({
     }),
   }),
   steps: [
-    extractFrustrationsStep,
+    analyzeImageStep,
+    extractContentThemesStep,
     findBaseMemeStep,
     generateCaptionsStep,
     generateMemeStep,
@@ -30,12 +34,29 @@ export const memeGenerationWorkflow = createWorkflow({
 
 // Build the workflow chain with data mapping
 memeGenerationWorkflow
-  .then(extractFrustrationsStep)
+  .then(analyzeImageStep)
+  .then(extractContentThemesStep)
   .then(findBaseMemeStep)
   .map({
-    frustrations: {
-      step: extractFrustrationsStep,
-      path: '.',
+    themes: {
+      step: extractContentThemesStep,
+      path: 'themes',
+    },
+    overallMood: {
+      step: extractContentThemesStep,
+      path: 'overallMood',
+    },
+    suggestedMemeStyle: {
+      step: extractContentThemesStep,
+      path: 'suggestedMemeStyle',
+    },
+    language: {
+      step: extractContentThemesStep,
+      path: 'language',
+    },
+    isContextual: {
+      step: extractContentThemesStep,
+      path: 'isContextual',
     },
     baseTemplate: {
       step: findBaseMemeStep,
