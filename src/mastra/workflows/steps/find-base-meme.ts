@@ -1,11 +1,13 @@
 import { createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
-import { frustrationsSchema, memeTemplateSchema } from '../schemas';
+import { contentAnalysisSchema, memeTemplateSchema } from '../schemas';
 
 export const findBaseMemeStep = createStep({
   id: 'find-base-meme',
   description: "Get meme templates from Imgflip's API",
-  inputSchema: frustrationsSchema.extend({
+  inputSchema: contentAnalysisSchema.extend({
+    language: z.string().describe('Language for meme generation'),
+    isContextual: z.boolean().describe('Whether this was a contextual request'),
     analysis: z.object({
       message: z.string(),
     }),
@@ -22,10 +24,11 @@ export const findBaseMemeStep = createStep({
   }),
   execute: async ({ inputData }) => {
     try {
-      console.log('🔍 Searching for the perfect meme template...');
+      const contextualNote = inputData.isContextual ? ' (contextual request)' : '';
+      console.log(`🔍 Searching for the perfect meme template (Language: ${inputData.language}${contextualNote})...`);
 
       const response = await fetch('https://api.imgflip.com/get_memes');
-      const data = await response.json();
+      const data = await response.json() as { success: boolean; data: { memes: any[] } };
 
       if (!data.success) {
         throw new Error('Failed to fetch memes from Imgflip');
@@ -45,7 +48,7 @@ export const findBaseMemeStep = createStep({
           style: inputData.suggestedMemeStyle,
         },
         analysis: {
-          message: `Found ${selectedMemes.length} meme templates matching ${inputData.overallMood} mood`,
+          message: `Found ${selectedMemes.length} meme templates matching ${inputData.overallMood} mood for ${inputData.language} memes${contextualNote}`,
         },
       };
     } catch (error) {

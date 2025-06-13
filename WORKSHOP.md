@@ -53,7 +53,7 @@ git checkout steps/step-X  # Replace X with the step number
 #### 1. Clone and Install
 ```bash
 git clone git@github.com:workos/mastra-agents-meme-generator.git
-cd mastra-agents-meme-generator
+cd ai-eng-world-faire-workshop
 git checkout steps/step-0
 npm install
 ```

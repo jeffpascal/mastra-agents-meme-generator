@@ -1,6 +1,6 @@
 # AI Pipelines and Agents in Pure TypeScript with Mastra.ai
 
-Welcome to this hands-on workshop! This project demonstrates how to build **production-ready AI agents and workflows** using Mastra to create a fun meme generation pipeline that turns workplace frustrations into shareable memes.
+Welcome to this hands-on workshop! This project demonstrates how to build **production-ready AI agents and workflows** using Mastra to create a fun meme generation pipeline that turns **any text or situation** into shareable memes, with optional image analysis capabilities and **intelligent memory powered by Mem0**.
 
 ## 🎬 Workshop Video Tutorial
 
@@ -18,29 +18,33 @@ While we've chosen a humorous implementation example, the **patterns, architectu
 - **Mastra Workflows**: Create modular workflow steps that can be chained together
 - **Structured Generation**: Use Vercel AI SDK with Zod schemas for reliable data extraction
 - **External API Integration**: Connect to meme services (Imgflip) for meme generation
+- **Image Analysis**: Use GPT-4 Vision to analyze images and incorporate them into meme generation
 - **Agentic Workflows**: Chain multiple steps together to create complex workflows
+- **Intelligent Memory**: Implement persistent memory with Mem0 for personalized experiences
 
 ## 🧠 Understanding the Workflow
 
 ### The Meme Generation Pipeline
 
-Our workshop demonstrates a complete agentic workflow:
+Our workshop demonstrates a complete agentic workflow that works with any content:
 
 ```mermaid
 graph LR
-    A[User Input<br/>Work Frustrations] --> B[Extract Frustrations Step<br/>Structured Generation]
-    B --> C[Find Base Meme Step<br/>Imgflip API Search]
-    C --> D[Generate Captions Step<br/>AI Caption Creation]
-    D --> E[Generate Meme Step<br/>Imgflip Caption API]
-    E --> F[Shareable URL<br/>Ready to Share!]
+    A[User Input<br/>Any Text/Situation + Optional Image URL] --> B[Image Analysis Step<br/>GPT-4 Vision Analysis]
+    B --> C[Content Analysis Step<br/>Theme Extraction]
+    C --> D[Find Base Meme Step<br/>Imgflip API Search]
+    D --> E[Generate Captions Step<br/>AI Caption Creation]
+    E --> F[Generate Meme Step<br/>Imgflip Caption API]
+    F --> G[Shareable URL<br/>Ready to Share!]
 ```
 
 ### Key Components
 
-1. **Frustration Extraction Step**: Uses structured generation to parse user input into categorized frustrations
-2. **Meme Search Step**: Searches Imgflip's free API for appropriate base meme templates
-3. **Caption Generation Step**: Creates witty, contextual captions based on frustrations and meme template
-4. **Meme Generation Step**: Uses Imgflip's caption API to create memes with the base template and captions, returning a stable shareable URL
+1. **Image Analysis Step**: Detects image URLs in input and analyzes them using GPT-4 Vision
+2. **Content Analysis Step**: Uses structured generation to parse any kind of user input into themes and emotional context
+3. **Meme Search Step**: Searches Imgflip's free API for appropriate base meme templates
+4. **Caption Generation Step**: Creates witty, contextual captions based on content analysis and meme template
+5. **Meme Generation Step**: Uses Imgflip's caption API to create memes with the base template and captions
 
 ## 🎭 Example Generated Memes
 
@@ -92,14 +96,33 @@ Create a `.env` file with your API keys:
 # OpenAI Configuration (required for caption generation)
 OPENAI_API_KEY=your_openai_api_key_here
 
+# Mem0 Configuration (required for intelligent memory)
+MEM0_API_KEY=your_mem0_api_key_here
+
 # Optional: Imgflip credentials for meme generation (recommended for better reliability)
 IMGFLIP_USERNAME=your_imgflip_username
 IMGFLIP_PASSWORD=your_imgflip_password
 ```
 
+**Getting Your API Keys:**
+
+1. **OpenAI API Key**: Get it from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. **Mem0 API Key**: Sign up at [app.mem0.ai](https://app.mem0.ai) and create a new project
+3. **Imgflip Credentials** (Optional): Create a free account at [Imgflip](https://imgflip.com/signup)
+
 **Note:** The app will work without Imgflip credentials using a default account, but may be rate limited.
 
-### 3. Start the Development Server
+### 3. Test Mem0 Integration (Optional)
+
+Test your Mem0 configuration with the included test script:
+
+```bash
+node test-mem0.js
+```
+
+This will verify your Mem0 API key is working correctly.
+
+### 4. Start the Development Server
 
 ```bash
 npm run dev
@@ -231,7 +254,51 @@ const generateMemeStep = createStep({
 });
 ```
 
+## 🧠 Intelligent Memory with Mem0
 
+This project now includes intelligent memory capabilities powered by Mem0, enabling the meme generator to:
+
+### 🏗️ **Dual Storage Architecture**
+- **Mastra System Storage**: Uses LibSQL for core system operations (telemetry, workflow state)
+- **Agent Memory**: Uses Mem0 for intelligent, personalized user memory and preferences
+- **Separation of Concerns**: System storage and agent memory are completely separate
+
+### 🎯 **Personalization Features**
+- **Remember User Preferences**: Language preferences, favorite meme styles, and topics
+- **Learn from Success**: Track which memes work well for each user
+- **Context Awareness**: Build on previous conversations and meme requests
+- **Smart Recommendations**: Suggest meme formats based on past successful generations
+
+### 🔧 **Memory Tools**
+The agent has access to two powerful memory tools:
+
+1. **Mem0-memorize**: Automatically saves important information like:
+   - User's preferred meme formats (Drake, Distracted Boyfriend, etc.)
+   - Language preferences (Spanish, French, German, etc.)
+   - Successful meme themes and topics
+   - User feedback and preferences
+
+2. **Mem0-remember**: Retrieves relevant information such as:
+   - Previous successful meme patterns
+   - User's favorite styles and formats
+   - Language and content preferences
+   - Historical context from past conversations
+
+### 🚀 **Enhanced User Experience**
+- **First-time users**: Get standard meme generation
+- **Returning users**: Receive increasingly personalized meme recommendations
+- **Contextual requests**: "Make another one like the last one" or "Use my preferred style"
+- **Cross-session memory**: Preferences persist across different conversation sessions
+- **Multi-language support**: Automatic language detection with intelligent character normalization
+
+### 🔤 **Romanian Character Normalization**
+The system automatically normalizes Romanian special characters for better meme compatibility:
+- **ă, â → a** | **Ă, Â → A**
+- **î → i** | **Î → I** 
+- **ș → s** | **Ș → S**
+- **ț → t** | **Ț → T**
+
+This ensures memes display correctly across all platforms and meme generators, while preserving the original meaning and humor in Romanian.
 
 ## 🧪 Testing Your Workflow
 

@@ -2,57 +2,80 @@ import { createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { frustrationsSchema } from '../schemas';
+import { contentAnalysisSchema } from '../schemas';
 
-export const extractFrustrationsStep = createStep({
-  id: 'extract-frustrations',
+export const extractContentThemesStep = createStep({
+  id: 'extract-content-themes',
   description:
-    'Extract and categorize user frustrations from raw input using AI',
+    'Extract and categorize content themes from raw input using AI',
   inputSchema: z.object({
-    userInput: z.string().describe('Raw user input about work frustrations'),
+    hasImage: z.boolean(),
+    imageUrl: z.string().optional(),
+    imageDescription: z.string().optional(),
+    enhancedPrompt: z.string(),
+    language: z.string().describe('Language for meme generation'),
+    isContextual: z.boolean().describe('Whether this was a contextual request'),
+    analysis: z.object({
+      message: z.string(),
+    }),
   }),
-  outputSchema: frustrationsSchema.extend({
+  outputSchema: contentAnalysisSchema.extend({
+    language: z.string().describe('Language for meme generation'),
+    isContextual: z.boolean().describe('Whether this was a contextual request'),
     analysis: z.object({
       message: z.string(),
     }),
   }),
   execute: async ({ inputData }) => {
     try {
-      console.log('🔍 Analyzing your workplace frustrations...');
+      const contextualNote = inputData.isContextual ? ' (contextual request)' : '';
+      console.log(`🔍 Analyzing your content for meme generation in ${inputData.language}${contextualNote}...`);
 
       const result = await generateObject({
-        model: openai('gpt-4'),
-        schema: frustrationsSchema,
+        model: openai('gpt-4o-mini'),
+        schema: contentAnalysisSchema,
         prompt: `
-          Analyze this workplace frustration and extract structured information:
+          Analyze this content for meme generation and extract structured information:
           
-          "${inputData.userInput}"
+          "${inputData.enhancedPrompt}"
+          ${inputData.hasImage && inputData.imageDescription ? `\nImage context: ${inputData.imageDescription}` : ''}
+          ${inputData.isContextual ? '\n\nNOTE: This is a contextual request that modifies or references previous content. Pay special attention to what the user wants to change or modify.' : ''}
           
           Extract:
-          - Individual frustrations with categories (meetings, processes, technology, communication, management, workload, other)
-          - Overall mood (frustrated, annoyed, overwhelmed, tired, angry, sarcastic)
-          - Keywords for each frustration
-          - Suggested meme style
+          - Main themes with categories (humor, frustration, excitement, etc.)
+          - Overall mood and emotional tone
+          - Keywords for each theme
+          - Suggested meme style that would work best
           
-          Keep analysis concise and focused.
+          This could be about any topic - work, relationships, entertainment, life situations, etc.
+          Keep analysis concise and focused. Consider the emotional context and what type of meme would be most appropriate.
+          
+          IMPORTANT: The meme will be generated in ${inputData.language}. Consider cultural context and humor styles appropriate for ${inputData.language} speakers.
+          
+          Please provide your analysis in English (for structured data), but keep in mind that the final meme text will be in ${inputData.language}.
         `,
       });
 
-      const frustrations = result.object;
+      const contentAnalysis = result.object;
 
       console.log(
-        `✅ Found ${frustrations.frustrations.length} frustrations, mood: ${frustrations.overallMood}`,
+        `✅ Found ${contentAnalysis.themes.length} themes, mood: ${contentAnalysis.overallMood} (Language: ${inputData.language}${contextualNote})`,
       );
 
       return {
-        ...frustrations,
+        ...contentAnalysis,
+        language: inputData.language,
+        isContextual: inputData.isContextual,
         analysis: {
-          message: `Analyzed your frustrations - main issue: ${frustrations.frustrations[0]?.category} (${frustrations.overallMood} mood)`,
+          message: `Analyzed content in ${inputData.language} - main theme: ${contentAnalysis.themes[0]?.category} (${contentAnalysis.overallMood} mood)${contextualNote}`,
         },
       };
     } catch (error) {
-      console.error('Error extracting frustrations:', error);
-      throw new Error('Failed to analyze frustrations');
+      console.error('Error extracting content themes:', error);
+      throw new Error('Failed to analyze content');
     }
   },
 });
+
+// Keep the old export for backward compatibility
+export const extractFrustrationsStep = extractContentThemesStep;
