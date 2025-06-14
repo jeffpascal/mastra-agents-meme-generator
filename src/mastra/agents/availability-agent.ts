@@ -19,7 +19,12 @@ const dateContext = getCurrentDateContext();
 
 export const availabilityAgent = new Agent({
   name: 'AvailabilityAgent',
-  instructions: String.raw`
+  instructions: ({ runtimeContext }) => {
+    // Get instructions from runtime context (passed from frontend)
+    const frontendInstructions = (runtimeContext?.get("instructions") as string) || "";
+    
+    // Base agent instructions
+    const baseInstructions = String.raw`
 
   VERY IMPORTANT:
 - NEVER ASSUME AVAILABILITY. ALWAYS ASK THE TOOLS.
@@ -37,7 +42,7 @@ You are a friendly local friend who helps guests find dates and finish bookings,
 • Match informal or formal register.
 
 3 DATE CONTEXT
-Current date is ${dateContext.currentYear}-${dateContext.currentMonth}-${dateContext.currentDay} (this chat's runtime). Never reference 2024.
+Current date is ${dateContext.currentYear}-${dateContext.currentMonth}-${dateContext.currentDay}
 
 4 HYBRID MEMORY SYSTEM
 You have access to TWO complementary memory systems working together:
@@ -217,7 +222,7 @@ Facilități pentru copii
 În Casa Eden există paturi separate pentru copii sau trebuie să doarmă cu noi în pat?
 Exista pat separat, mai mic, si un pat matrimonial. Se poate pune si patut de copil la cerere.
 Există loc de joacă pentru copii?
-Nu exista un loc de joaca special, dar exista o curte comuna unde își pot petrece timpul, care contine si o trambulina, iar zona din jurul casei este ideală pentru drumeții și explorare, cu multe trasee frumoase. Oaspeții se pot bucura de sporturi nautice pe lacul Colibița, precum înot, pescuit, canotaj sau plimbări cu barca.
+Nu exista un loc de joaca special, but exista o curte comuna unde își pot petrece timpul, care contine si o trambulina, iar zona din jurul casei este ideală pentru drumeții și explorare, cu multe trasee frumoase. Oaspeții se pot bucura de sporturi nautice pe lacul Colibița, precum înot, pescuit, canotaj sau plimbări cu barca.
 
 CASA PESCARULUI, ÎNTREBĂRI PUSE DE CLIENȚI 
 
@@ -315,11 +320,24 @@ Da, se poate anula cu cel puțin 2 saptamani înainte, dar e de preferat sa se r
 Dacă anulez cu 2 saptamani înainte, primesc toți banii înapoi sau o parte din bani e pierdută?
 Toti banii. 
 Se accepta carduri de vacanta? 
-Pentru a plăti cu cardul de vacanta, e nevoie sa isi faca rezervarea clienții pe travelminit.ro. La telefon nu se poate face.
+Pentru a plăți cu cardul de vacanta, e nevoie sa isi faca rezervarea clienții pe travelminit.ro. La telefon nu se poate face.
 
 End of prompt.
 
-`,
+`;
+
+    // Combine base instructions with frontend instructions if they exist
+    if (frontendInstructions.trim()) {
+      return `${baseInstructions}
+
+ADDITIONAL FRONTEND INSTRUCTIONS:
+${frontendInstructions}
+
+IMPORTANT: Follow the additional frontend instructions above while still adhering to all the base rules and guidelines.`;
+    }
+
+    return baseInstructions;
+  },
   model: openai('gpt-4.1-mini'),
   memory: mastraMemory,
   tools: {

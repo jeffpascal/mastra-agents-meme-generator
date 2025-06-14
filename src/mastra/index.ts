@@ -22,7 +22,11 @@ const storage = new LibSQLStore({
 export const mastra = new Mastra({
   storage, // Required as workaround for bug #4497
   agents: {
-    availability: availabilityAgent
+    availability: availabilityAgent,
+    memeGenerator: memeGeneratorAgent
+  },
+  workflows: {
+    'meme-generation': memeGenerationWorkflow,
   },
   telemetry: {
     enabled: true, // Now working with storage
@@ -39,9 +43,17 @@ export const mastra = new Mastra({
         path: "/copilotkit",
         resourceId: "availability",
         setContext: (c, runtimeContext) => {
-          // Add context for the availability agent
+          // Add context for the agents
           runtimeContext.set("user-id", c.req.header("X-User-ID") || "anonymous");
           runtimeContext.set("session-id", c.req.header("X-Session-ID") || "default");
+          
+          // Extract and pass instructions from frontend
+          const instructions = c.req.header("X-Instructions");
+          if (instructions) {
+            console.log("Instructions:", instructions);
+            runtimeContext.set("instructions", instructions);
+          }
+
         }
       })
     ]
