@@ -1,0 +1,57 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+
+env:
+  DOCKER_USERNAME: jeffpascal
+  IMAGE_NAME: mastra-meme-generator
+
+jobs:
+  docker-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_LOGIN_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        run: |
+          VERSION="${{ github.ref_name == 'main' && 'latest' || github.ref_name }}"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=${BUILD_DATE}" >> $GITHUB_OUTPUT
+          echo "PROD_IMAGE=${DOCKER_USERNAME}/${IMAGE_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.PROD_IMAGE }}:latest
+          build-args: |
+            BUILD_DATE=${{ steps.meta.outputs.BUILD_DATE }}
+            VERSION=${{ steps.meta.outputs.VERSION }}
+            COMMIT_HASH=${{ steps.meta.outputs.COMMIT_HASH }}
+          platforms: linux/amd64 
