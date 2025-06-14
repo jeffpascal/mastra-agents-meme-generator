@@ -1,0 +1,43 @@
+# Development Dockerfile for Mastra Meme Generator
+# This dockerfile supports hot reload for development
+
+FROM --platform=linux/amd64 node:20-alpine
+
+# Install development dependencies
+RUN apk add --no-cache libc6-compat git
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 mastra
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci
+
+# Create directory for database files and logs with proper permissions
+RUN mkdir -p /data/mastra-ai && chown -R mastra:nodejs /data/mastra-ai
+
+# Copy source code
+COPY --chown=mastra:nodejs . .
+
+# Switch to non-root user
+USER mastra
+
+# Expose ports
+EXPOSE 4111 3001
+
+# Set development environment
+ENV NODE_ENV=development
+ENV DOCKER_ENV=true
+ENV PORT=4111
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4111/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+
+# Start in development mode with hot reload
+CMD ["npm", "run", "dev"] 

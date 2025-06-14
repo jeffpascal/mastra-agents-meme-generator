@@ -14,15 +14,22 @@ import { openai } from '@ai-sdk/openai';
 // 3. Mastra System Storage (LibSQL) - Used by index.ts for system operations
 // ====================================================================
 
+// Environment-aware database path
+const getMemoryDbPath = () => {
+  // Use Docker path if in container, relative path for local development
+  const isDocker = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV === 'true';
+  return isDocker ? 'file:/data/mastra-ai/mastra-memory.db' : 'file:./mastra-memory.db';
+};
+
 // === MASTRA BUILT-IN MEMORY CONFIGURATION ===
 // Configure storage for Mastra memory (separate from system storage)
 const memoryStorage = new LibSQLStore({
-  url: 'file:./mastra-memory.db', // Separate database for memory
+  url: getMemoryDbPath(), // Environment-aware database path
 });
 
 // Configure vector database for semantic recall
 const memoryVector = new LibSQLVector({
-  connectionUrl: 'file:./mastra-memory.db',
+  connectionUrl: getMemoryDbPath(),
 });
 
 // Create Mastra Memory instance with enhanced configuration

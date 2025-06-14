@@ -1,0 +1,158 @@
+services:
+  mastra-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4111:4111"
+      - "3001:3001"
+    environment:
+      # Docker environment detection
+      - DOCKER_ENV=true
+      
+      # OpenAI Configuration (required)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Mem0 Configuration (required for intelligent memory)
+      - MEM0_API_KEY=${MEM0_API_KEY}
+      
+      # Optional: Imgflip credentials for advanced meme features
+      - IMGFLIP_USERNAME=${IMGFLIP_USERNAME:-}
+      - IMGFLIP_PASSWORD=${IMGFLIP_PASSWORD:-}
+      
+      # Tawk.to Webhook Configuration (required for chat integration)
+      - TAWK_WEBHOOK_SECRET=${TAWK_WEBHOOK_SECRET:-}
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-3001}
+      
+      # Server Configuration
+      - PORT=4111
+      - NODE_ENV=production
+    volumes:
+      # Mount a volume for database persistence
+      - mastra_data:/data/mastra-ai
+      # Mount database files to persistent storage
+      - ./mastra-system.db:/data/mastra-ai/mastra-system.db
+      - ./mastra-system.db-shm:/data/mastra-ai/mastra-system.db-shm
+      - ./mastra-system.db-wal:/data/mastra-ai/mastra-system.db-wal
+      - ./mastra-memory.db:/data/mastra-ai/mastra-memory.db
+      - ./mastra-memory.db-shm:/data/mastra-ai/mastra-memory.db-shm
+      - ./mastra-memory.db-wal:/data/mastra-ai/mastra-memory.db-wal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4111/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Development service with hot reload
+  mastra-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4111:4111"
+      - "3001:3001"
+    environment:
+      # Docker environment detection
+      - DOCKER_ENV=true
+      
+      # OpenAI Configuration (required)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Mem0 Configuration (required for intelligent memory)
+      - MEM0_API_KEY=${MEM0_API_KEY}
+      
+      # Optional: Imgflip credentials
+      - IMGFLIP_USERNAME=${IMGFLIP_USERNAME:-}
+      - IMGFLIP_PASSWORD=${IMGFLIP_PASSWORD:-}
+      
+      # Tawk.to Webhook Configuration (required for chat integration)
+      - TAWK_WEBHOOK_SECRET=${TAWK_WEBHOOK_SECRET:-}
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-3001}
+      
+      # Development Configuration
+      - NODE_ENV=development
+    volumes:
+      # Mount entire project for development hot reload
+      - .:/app
+      - /app/node_modules
+      - mastra_data:/data/mastra-ai
+    restart: unless-stopped
+    profiles:
+      - dev
+
+  # WhatsApp Webhook Service
+  mastra-webhook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      # Docker environment detection
+      - DOCKER_ENV=true
+      
+      # OpenAI Configuration (required)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Mem0 Configuration (required for intelligent memory)
+      - MEM0_API_KEY=${MEM0_API_KEY}
+      
+      # Tawk.to Webhook Configuration (required for chat integration)
+      - TAWK_WEBHOOK_SECRET=${TAWK_WEBHOOK_SECRET}
+      - WEBHOOK_PORT=3001
+      
+      # Server Configuration
+      - NODE_ENV=production
+    volumes:
+      # Mount database files to persistent storage (shared with main app)
+      - ./mastra-system.db:/data/mastra-ai/mastra-system.db
+      - ./mastra-system.db-shm:/data/mastra-ai/mastra-system.db-shm
+      - ./mastra-system.db-wal:/data/mastra-ai/mastra-system.db-wal
+      - ./mastra-memory.db:/data/mastra-ai/mastra-memory.db
+      - ./mastra-memory.db-shm:/data/mastra-ai/mastra-memory.db-shm
+      - ./mastra-memory.db-wal:/data/mastra-ai/mastra-memory.db-wal
+    restart: unless-stopped
+    command: ["sh", "-c", "cd /app && npm run webhook"]
+    depends_on:
+      - mastra-app
+
+  # Development Webhook Service
+  mastra-webhook-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+    environment:
+      # Docker environment detection
+      - DOCKER_ENV=true
+      
+      # OpenAI Configuration (required)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Mem0 Configuration (required for intelligent memory)
+      - MEM0_API_KEY=${MEM0_API_KEY}
+      
+      # Tawk.to Webhook Configuration (required for chat integration)
+      - TAWK_WEBHOOK_SECRET=${TAWK_WEBHOOK_SECRET}
+      - WEBHOOK_PORT=3001
+      
+      # Development Configuration
+      - NODE_ENV=development
+    volumes:
+      # Mount entire project for development hot reload
+      - .:/app
+      - /app/node_modules
+      - mastra_data:/data/mastra-ai
+    restart: unless-stopped
+    command: ["sh", "-c", "cd /app && npm run webhook"]
+    profiles:
+      - dev
+    depends_on:
+      - mastra-dev
+
+volumes:
+  mastra_data:
+    driver: local 

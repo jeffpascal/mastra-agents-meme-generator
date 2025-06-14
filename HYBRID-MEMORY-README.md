@@ -1,26 +1,82 @@
-# Hybrid Memory System: Mastra + Mem0 Integration
+# Enhanced Hybrid Memory System for Mastra Agents
 
-## Overview
+This project includes a **state-of-the-art hybrid memory architecture** that combines Mastra's built-in memory capabilities with Mem0's intelligent agent memory for unprecedented personalization and context awareness.
 
-This project now implements a **Hybrid Memory Architecture** that combines the best of both Mastra's built-in memory system and Mem0's intelligent memory service. This gives your AI agents unprecedented memory capabilities with both automatic conversation tracking and explicit pattern storage.
+## 🧠 Memory Architecture Overview
 
-## 🏗️ Architecture
+Our hybrid system provides **three complementary memory layers**:
 
-### Three-Layer Memory System
+### 1. **Mastra System Storage** (LibSQL)
+- **Purpose**: Core system operations, telemetry, workflow state
+- **Location**: 
+  - Local development: `./mastra-system.db`
+  - Docker: `/data/mastra-ai/mastra-system.db`
+- **Configuration**: Used in `src/mastra/index.ts` for main Mastra instance
+- **Automatic**: Handles system-level persistence transparently
 
-1. **Mastra System Storage** (`./mastra-system.db`)
-   - Core system operations and workflows
-   - Agent definitions and configurations
+### 2. **Mastra Built-in Memory** (LibSQL + Vector)
+- **Purpose**: Automatic conversation tracking, semantic recall, working memory
+- **Location**: 
+  - Local development: `./mastra-memory.db`
+  - Docker: `/data/mastra-ai/mastra-memory.db`
+- **Features**: 
+  - Working Memory with user profile templates
+  - Semantic Recall using AI embeddings  
+  - Automatic context preservation
+  - Cross-conversation learning
 
-2. **Mastra Built-in Memory** (`./mastra-memory.db`)
-   - **Working Memory**: Maintains persistent user profiles and session context
-   - **Semantic Recall**: AI-powered retrieval of relevant past conversations
-   - Automatic conversation flow tracking
+### 3. **Mem0 Agent Memory** (Cloud/API)
+- **Purpose**: Explicit user pattern storage, cross-session intelligence
+- **Features**:
+  - User-specific memory per chat session
+  - Intelligent pattern recognition
+  - Explicit memory save/recall tools
+  - Advanced personalization
 
-3. **Mem0 Memory Service** (External API)
-   - Explicit user pattern storage and retrieval
-   - Session-specific intelligent memory
-   - Custom user intent tracking
+## 🏗️ Configuration Examples
+
+### Mastra Built-in Memory Setup
+
+```typescript
+// Environment-aware database path
+const getMemoryDbPath = () => {
+  // Use Docker path if in container, relative path for local development
+  const isDocker = process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV === 'true';
+  return isDocker ? 'file:/data/mastra-ai/mastra-memory.db' : 'file:./mastra-memory.db';
+};
+
+// Configure storage for Mastra memory (separate from system storage)
+const memoryStorage = new LibSQLStore({
+  url: getMemoryDbPath(), // Environment-aware database path
+});
+
+// Configure vector database for semantic recall
+const memoryVector = new LibSQLVector({
+  connectionUrl: getMemoryDbPath(),
+});
+
+export const mastraMemory = new Memory({
+  storage: memoryStorage,
+  vector: memoryVector,
+  embedder: openai.embedding('text-embedding-3-small'),
+  options: {
+    workingMemory: {
+      enabled: true,
+      template: `# User Profile & Session Context...`
+    },
+    semanticRecall: {
+      topK: 5,
+      messageRange: 2,
+    },
+  },
+});
+
+// Mem0 Memory Tools
+export const mem0Tools = {
+  mem0RememberTool,  // Explicit pattern retrieval
+  mem0MemorizeTool,  // Explicit pattern storage
+};
+```
 
 ## 🎯 Key Benefits
 
@@ -48,8 +104,8 @@ This project now implements a **Hybrid Memory Architecture** that combines the b
 ```typescript
 // Mastra Built-in Memory
 export const mastraMemory = new Memory({
-  storage: new LibSQLStore({ url: 'file:./mastra-memory.db' }),
-  vector: new LibSQLVector({ connectionUrl: 'file:./mastra-memory.db' }),
+  storage: new LibSQLStore({ url: getMemoryDbPath() }),
+  vector: new LibSQLVector({ connectionUrl: getMemoryDbPath() }),
   embedder: openai.embedding('text-embedding-3-small'),
   options: {
     workingMemory: {

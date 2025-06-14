@@ -27,11 +27,91 @@ const PropertySchema = z.object({
 }).catchall(RoomAvailabilitySchema); // This handles the dynamic numbered keys like "0", "1", "2"
 
 // MCP Server configuration
-const MCP_SERVER_URL = 'http://localhost:8080/message';
+const MCP_SERVER_URL = 'http://127.0.0.1:8080/message';
+const REQUEST_TIMEOUT_MS = 60000; // 1 minute timeout
+const MAX_RETRY_ATTEMPTS = 5; // 1 initial attempt + 4 retries
 
-// Helper function to call MCP server directly via HTTP
-async function callMCPTool(toolName: string, args: any) {
+// Utility function to add timeout to fetch requests
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
   try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
+// Utility function to sleep/delay execution
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+// Utility function to determine if an error is retriable
+function isRetriableError(error: any): boolean {
+  // Network errors, timeouts, and 5xx HTTP errors are retriable
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    return true; // Network error
+  }
+  if (error.message?.includes('timeout')) {
+    return true; // Timeout error
+  }
+  if (error.message?.includes('HTTP 5')) {
+    return true; // 5xx server errors
+  }
+  if (error.message?.includes('ECONNREFUSED') || error.message?.includes('ENOTFOUND')) {
+    return true; // Connection errors
+  }
+  return false;
+}
+
+// Retry wrapper function with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxAttempts: number = MAX_RETRY_ATTEMPTS
+): Promise<T> {
+  let lastError: Error = new Error('Unknown error');
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`🔄 ${operationName} - Attempt ${attempt}/${maxAttempts}`);
+      const result = await operation();
+      if (attempt > 1) {
+        console.log(`✅ ${operationName} succeeded on attempt ${attempt}`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (attempt === maxAttempts || !isRetriableError(lastError)) {
+        console.error(`❌ ${operationName} failed after ${attempt} attempts:`, lastError.message);
+        break;
+      }
+      
+      // Calculate exponential backoff delay: 1s, 2s, 4s, 8s
+      const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.log(`⏳ ${operationName} failed on attempt ${attempt}, retrying in ${delayMs}ms...`);
+      console.log(`   Error: ${lastError.message}`);
+      
+      await sleep(delayMs);
+    }
+  }
+  
+  throw lastError;
+}
+
+// Helper function to call MCP server directly via HTTP with retry mechanism
+async function callMCPTool(toolName: string, args: any) {
+  return withRetry(async () => {
     console.log(`🔧 Calling MCP tool: ${toolName} via HTTP`);
     console.log(`📝 Tool arguments:`, JSON.stringify(args, null, 2));
     
@@ -48,7 +128,7 @@ async function callMCPTool(toolName: string, args: any) {
     
     console.log(`📡 Sending request to ${MCP_SERVER_URL}`);
     
-    const response = await fetch(MCP_SERVER_URL, {
+    const response = await fetchWithTimeout(MCP_SERVER_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,56 +164,57 @@ async function callMCPTool(toolName: string, args: any) {
     }
     
     return result;
-  } catch (error) {
-    console.error(`❌ Error calling MCP tool ${toolName}:`, error);
+  }, `MCP Tool Call (${toolName})`).catch(error => {
+    console.error(`❌ Error calling MCP tool ${toolName} after all retries:`, error);
     throw new Error(`Failed to call MCP tool ${toolName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  });
 }
 
-// Helper function to test MCP server availability
+// Helper function to test MCP server availability with retry mechanism
 async function testMCPConnection(): Promise<boolean> {
   try {
-    console.log('🔍 Testing MCP server connection...');
-    
-    const rpcRequest = {
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'tools/list',
-      params: {}
-    };
-    
-    const response = await fetch(MCP_SERVER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(rpcRequest)
-    });
+    await withRetry(async () => {
+      console.log('🔍 Testing MCP server connection...');
+      
+      const rpcRequest = {
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'tools/list',
+        params: {}
+      };
+      
+      const response = await fetchWithTimeout(MCP_SERVER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(rpcRequest)
+      });
 
-    if (!response.ok) {
-      console.error(`❌ MCP server responded with ${response.status}: ${response.statusText}`);
-      return false;
-    }
+      if (!response.ok) {
+        throw new Error(`MCP server responded with ${response.status}: ${response.statusText}`);
+      }
 
-    const rpcResponse = await response.json() as any;
-    
-    if (rpcResponse.error) {
-      console.error(`❌ MCP server error:`, rpcResponse.error);
-      return false;
-    }
-    
-    if (rpcResponse.result && rpcResponse.result.tools) {
+      const rpcResponse = await response.json() as any;
+      
+      if (rpcResponse.error) {
+        throw new Error(`MCP server error: ${rpcResponse.error.message}`);
+      }
+      
+      if (!rpcResponse.result || !rpcResponse.result.tools) {
+        throw new Error('Unexpected MCP response format');
+      }
+      
       const tools = rpcResponse.result.tools;
       console.log(`✅ MCP server connected successfully`);
       console.log(`🔧 Available tools: ${tools.map((t: any) => t.name).join(', ')}`);
       return true;
-    }
+    }, 'MCP Connection Test');
     
-    console.error(`❌ Unexpected MCP response format`);
-    return false;
+    return true;
   } catch (error) {
-    console.error(`❌ Failed to connect to MCP server:`, error);
+    console.error(`❌ Failed to connect to MCP server after all retries:`, error);
     console.log(`💡 Make sure your SSE server is running on port 8080`);
     return false;
   }
@@ -349,7 +430,7 @@ async function initializeMCP() {
     }
   } catch (error) {
     console.error('❌ Failed to test MCP server connection:', error);
-    console.log('⚠️ Make sure the SSE server is running on http://localhost:8080');
+    console.log('⚠️ Make sure the SSE server is running on http://172.31.0.18:8080');
   }
 }
 

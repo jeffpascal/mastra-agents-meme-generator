@@ -130,6 +130,85 @@ npm run dev
 
 Visit [http://localhost:4111](http://localhost:4111) to start generating memes!
 
+## 🐳 Docker Deployment
+
+### Quick Docker Setup
+
+If you prefer to run the application in a containerized environment, we've included complete Docker support:
+
+```bash
+# 1. Clone and setup environment
+git clone <your-repo-url>
+cd mastra-agents-meme-generator
+cp env.example .env
+# Edit .env with your API keys
+
+# 2. Run with Docker Compose (Production)
+docker-compose up -d
+
+# 3. Or run in development mode with hot reload
+docker-compose --profile dev up -d mastra-dev
+
+# 4. For Tawk.to webhook integration
+docker-compose up -d mastra-app mastra-webhook  # Production
+docker-compose --profile dev up -d mastra-dev mastra-webhook-dev  # Development
+```
+
+### Docker Benefits
+
+- **🔒 Consistent Environment**: Same runtime across development, staging, and production
+- **📦 Easy Deployment**: Deploy to any platform that supports Docker
+- **🔄 Hot Reload**: Development mode supports live code changes
+- **💾 Data Persistence**: Database files and logs are automatically persisted in `/data/mastra-ai`
+- **🏥 Health Checks**: Built-in health monitoring and automatic restarts
+
+### Docker Commands
+
+```bash
+# View logs
+docker-compose logs -f mastra-app
+
+# Stop containers
+docker-compose down
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# Access container shell
+docker-compose exec mastra-app sh
+```
+
+### Makefile Support
+
+For easier Docker operations, use the included Makefile:
+
+```bash
+# Show all available commands
+make help
+
+# Quick setup: login, build, and push to Docker Hub
+make login
+make build
+make push
+
+# Development workflow
+make run-dev            # Start development with hot reload
+make logs               # View logs
+make stop               # Stop containers
+
+# Tawk.to webhook integration
+make run-all            # Start both main app and webhook (production)
+make run-all-dev        # Start both main app and webhook (development)
+make logs-webhook       # View webhook logs
+
+# Create a versioned release
+make release VERSION=1.0.0
+```
+
+**Images available at:** `docker.io/jeffpascal/mastra-meme-generator`
+
+For comprehensive Docker setup instructions, deployment options, and troubleshooting, see **[DOCKER.md](./DOCKER.md)**.
+
 ## 🤖 How It Works
 
 ### The Meme Agent
