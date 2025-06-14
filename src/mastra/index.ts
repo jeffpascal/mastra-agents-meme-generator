@@ -1,5 +1,6 @@
 import { Mastra } from '@mastra/core';
 import { LibSQLStore } from '@mastra/libsql';
+import { registerCopilotKit } from '@mastra/agui';
 import { memeGeneratorAgent } from './agents/meme-generator';
 import { availabilityAgent } from './agents/availability-agent';
 import { memeGenerationWorkflow } from './workflows/meme-generation';
@@ -21,13 +22,28 @@ const storage = new LibSQLStore({
 export const mastra = new Mastra({
   storage, // Required as workaround for bug #4497
   agents: {
-    memeGenerator: memeGeneratorAgent,
-    availability: availabilityAgent,
-  },
-  workflows: {
-    'meme-generation': memeGenerationWorkflow,
+    availability: availabilityAgent
   },
   telemetry: {
     enabled: true, // Now working with storage
   },
+  server: {
+    // CORS configuration for CopilotKit integration
+    cors: {
+      origin: "*",
+      allowMethods: ["*"],
+      allowHeaders: ["*"]
+    },
+    apiRoutes: [
+      registerCopilotKit({
+        path: "/copilotkit",
+        resourceId: "availability",
+        setContext: (c, runtimeContext) => {
+          // Add context for the availability agent
+          runtimeContext.set("user-id", c.req.header("X-User-ID") || "anonymous");
+          runtimeContext.set("session-id", c.req.header("X-Session-ID") || "default");
+        }
+      })
+    ]
+  }
 });

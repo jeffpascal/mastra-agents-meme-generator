@@ -319,7 +319,7 @@ Pentru a plăti cu cardul de vacanta, e nevoie sa isi faca rezervarea clienții 
 End of prompt.
 
 `,
-  model: openai('gpt-4o'),
+  model: openai('gpt-4o-mini'),
   memory: mastraMemory,
   tools: {
     ...mem0Tools,
