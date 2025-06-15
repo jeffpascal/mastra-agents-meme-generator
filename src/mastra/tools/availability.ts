@@ -222,51 +222,32 @@ async function testMCPConnection(): Promise<boolean> {
 
 // Utility function to convert date object to readable string
 function formatDate(dateObj: { year: string; month: string; day: string }): string {
-  console.log(`🔍 [DEBUG] formatDate called with:`, JSON.stringify(dateObj));
-  
   const monthNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
   const month = monthNames[parseInt(dateObj.month) - 1];
   const day = parseInt(dateObj.day);
-  const result = `${day} ${month}`;
-  
-  console.log(`🔍 [DEBUG] formatDate returning: "${result}"`);
-  return result;
+  return `${day} ${month}`;
 }
 
 // Utility function to convert availability periods to readable date ranges
 function formatAvailabilityPeriods(periods: Array<Array<{ year: string; month: string; day: string }>>): string[] {
   const ranges: string[] = [];
   
-  console.log(`🔍 [DEBUG] formatAvailabilityPeriods called with ${periods.length} periods`);
-  
-  for (let periodIndex = 0; periodIndex < periods.length; periodIndex++) {
-    const period = periods[periodIndex];
-    console.log(`🔍 [DEBUG] Processing period ${periodIndex}:`, JSON.stringify(period, null, 2));
-    
-    if (period.length === 0) {
-      console.log(`⚠️ [DEBUG] Period ${periodIndex} is empty, skipping`);
-      continue;
-    }
+  for (const period of periods) {
+    if (period.length === 0) continue;
     
     if (period.length === 1) {
       // Single date
-      const formattedDate = formatDate(period[0]);
-      console.log(`🔍 [DEBUG] Single date in period ${periodIndex}: ${formattedDate}`);
-      ranges.push(formattedDate);
+      ranges.push(formatDate(period[0]));
     } else {
-      console.log(`🔍 [DEBUG] Period ${periodIndex} has ${period.length} dates, checking if consecutive`);
-      
       // Date range - check if dates are consecutive
       const sortedDates = period.sort((a, b) => {
         const dateA = new Date(parseInt(a.year), parseInt(a.month) - 1, parseInt(a.day));
         const dateB = new Date(parseInt(b.year), parseInt(b.month) - 1, parseInt(b.day));
         return dateA.getTime() - dateB.getTime();
       });
-      
-      console.log(`🔍 [DEBUG] Sorted dates for period ${periodIndex}:`, sortedDates.map(d => `${d.year}-${d.month}-${d.day}`));
       
       // Check if all dates are consecutive
       let isConsecutive = true;
@@ -275,10 +256,7 @@ function formatAvailabilityPeriods(periods: Array<Array<{ year: string; month: s
         const currDate = new Date(parseInt(sortedDates[i].year), parseInt(sortedDates[i].month) - 1, parseInt(sortedDates[i].day));
         const dayDiff = (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
         
-        console.log(`🔍 [DEBUG] Date difference between ${sortedDates[i-1].year}-${sortedDates[i-1].month}-${sortedDates[i-1].day} and ${sortedDates[i].year}-${sortedDates[i].month}-${sortedDates[i].day}: ${dayDiff} days`);
-        
         if (dayDiff !== 1) {
-          console.log(`⚠️ [DEBUG] Non-consecutive dates found in period ${periodIndex}`);
           isConsecutive = false;
           break;
         }
@@ -288,19 +266,14 @@ function formatAvailabilityPeriods(periods: Array<Array<{ year: string; month: s
         // Show as range
         const startDate = formatDate(sortedDates[0]);
         const endDate = formatDate(sortedDates[sortedDates.length - 1]);
-        const rangeText = `${startDate}-${endDate}`;
-        console.log(`✅ [DEBUG] Period ${periodIndex} is consecutive, formatted as range: ${rangeText}`);
-        ranges.push(rangeText);
+        ranges.push(`${startDate}-${endDate}`);
       } else {
         // Show individual dates
-        const individualDates = sortedDates.map(formatDate);
-        console.log(`✅ [DEBUG] Period ${periodIndex} is non-consecutive, formatted as individual dates: ${individualDates.join(', ')}`);
-        ranges.push(...individualDates);
+        ranges.push(...sortedDates.map(formatDate));
       }
     }
   }
   
-  console.log(`🔍 [DEBUG] formatAvailabilityPeriods returning ${ranges.length} ranges:`, ranges);
   return ranges;
 }
 
@@ -309,8 +282,6 @@ function createAvailabilitySummary(rawData: any): string[] {
   const summary: string[] = [];
   
   try {
-    console.log('🔍 [DEBUG] Raw data received:', JSON.stringify(rawData, null, 2));
-    
     // Extract date range information if available
     let dateRangeInfo = '';
     if (rawData.checkinDate && rawData.checkoutDate) {
@@ -346,81 +317,44 @@ function createAvailabilitySummary(rawData: any): string[] {
     // Handle both direct array format and wrapped format
     const propertiesData = Array.isArray(rawData) ? rawData : (rawData.propertiesData || rawData.data);
     
-    console.log('🔍 [DEBUG] Extracted properties data type:', typeof propertiesData);
-    console.log('🔍 [DEBUG] Is properties data an array?', Array.isArray(propertiesData));
-    console.log('🔍 [DEBUG] Properties data length:', Array.isArray(propertiesData) ? propertiesData.length : 'N/A');
-    
     if (!Array.isArray(propertiesData)) {
-      console.log('❌ [DEBUG] Properties data is not an array, returning error');
       return [dateRangeInfo, '', '❌ Invalid data format - expected array of properties'];
     }
     
-    console.log('🔍 [DEBUG] Processing', propertiesData.length, 'properties');
-    
     // Process each property
-    for (let propIndex = 0; propIndex < propertiesData.length; propIndex++) {
-      const property = propertiesData[propIndex];
-      console.log(`🔍 [DEBUG] Processing property ${propIndex}:`, JSON.stringify(property, null, 2));
-      
+    for (const property of propertiesData) {
       const propertyName = property.name || 'Unknown Property';
       const availabilities = property.availabilities || [];
-      
-      console.log(`🔍 [DEBUG] Property name: "${propertyName}"`);
-      console.log(`🔍 [DEBUG] Availabilities array length:`, availabilities.length);
       
       // Create a map of roomId to room name
       const roomMap = new Map<string, string>();
       
       // Extract room information from numbered keys
       Object.keys(property).forEach(key => {
-        console.log(`🔍 [DEBUG] Checking property key: "${key}"`);
         if (!isNaN(parseInt(key)) && property[key].roomId && property[key].roomName) {
-          console.log(`🔍 [DEBUG] Found room: ${property[key].roomName} (ID: ${property[key].roomId})`);
           roomMap.set(property[key].roomId, property[key].roomName);
         }
       });
       
-      console.log(`🔍 [DEBUG] Room map created:`, Array.from(roomMap.entries()));
-      
       // Process each room's availability
-      for (let availIndex = 0; availIndex < availabilities.length; availIndex++) {
-        const availability = availabilities[availIndex];
-        console.log(`🔍 [DEBUG] Processing availability ${availIndex}:`, JSON.stringify(availability, null, 2));
-        
+      for (const availability of availabilities) {
         const roomId = availability.roomId;
         const roomName = roomMap.get(roomId) || `Room ${roomId}`;
         const availabilityPeriods = availability.availability || [];
         
-        console.log(`🔍 [DEBUG] Room ID: ${roomId}, Room Name: ${roomName}`);
-        console.log(`🔍 [DEBUG] Availability periods count:`, availabilityPeriods.length);
-        
         if (availabilityPeriods.length > 0) {
-          console.log(`🔍 [DEBUG] Processing ${availabilityPeriods.length} availability periods for room ${roomName}`);
-          
           const dateRanges = formatAvailabilityPeriods(availabilityPeriods);
-          console.log(`🔍 [DEBUG] Formatted date ranges:`, dateRanges);
-          
           if (dateRanges.length > 0) {
-            const summaryLine = `- ${roomName} (roomId: ${roomId}) - Available: ${dateRanges.join(', ')}`;
-            console.log(`✅ [DEBUG] Adding summary line: ${summaryLine}`);
-            summary.push(summaryLine);
-          } else {
-            console.log(`⚠️ [DEBUG] No date ranges generated for room ${roomName}`);
+            summary.push(`- ${roomName} (roomId: ${roomId}) - Available: ${dateRanges.join(', ')}`);
           }
         } else {
-          const summaryLine = `- ${roomName} (roomId: ${roomId}) - No availability in selected period`;
-          console.log(`⚠️ [DEBUG] Adding no availability line: ${summaryLine}`);
-          summary.push(summaryLine);
+          summary.push(`- ${roomName} (roomId: ${roomId}) - No availability in selected period`);
         }
       }
     }
     
-    console.log(`🔍 [DEBUG] Final summary length:`, summary.length);
-    console.log(`🔍 [DEBUG] Final summary:`, summary);
-    
     // If no availability data was found (only date info and empty line)
     if (summary.length <= 2) {
-      console.log('⚠️ [DEBUG] No summary items generated, adding default message');
       summary.push('No availability data found for any properties in this period');
     }
     
@@ -429,8 +363,7 @@ function createAvailabilitySummary(rawData: any): string[] {
     summary.push('💡 Note: For availability outside this date range, please use the availability tool again with your desired dates.');
     
   } catch (error) {
-    console.error('❌ [DEBUG] Error creating availability summary:', error);
-    console.error('❌ [DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error creating availability summary:', error);
     summary.push(`❌ Error processing availability data: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
