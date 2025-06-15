@@ -493,11 +493,11 @@ export const createBookingTool = createTool({
   description: 'Create a beds24 booking URL with specified parameters for a room reservation',
   inputSchema: z.object({
     roomid: z.string().describe('Room ID to book'),
-    numadult: z.number().min(1).describe('Number of adults (minimum: 1)'),
+    numadult: z.number().min(1).describe('If user does not provide a number of adults, use 2 as default (minimum: 1)'),
     checkin: z.string().describe('Check-in date (YYYY-MM-DD)'),
     numnight: z.number().min(1).optional().describe('Number of nights (optional if checkout provided)'),
     checkout: z.string().optional().describe('Check-out date (YYYY-MM-DD, optional if numnight provided)'),
-    numchild: z.number().min(0).default(0).describe('Number of children (default: 0)'),
+    numchild: z.number().min(0).default(0).describe('If user does not provide a number of children, use 0 as default. Number of children (default: 0)'),
   }),
   outputSchema: z.object({
     success: z.boolean().describe('Whether the booking URL was created successfully'),
