@@ -44,10 +44,9 @@ async function testMCPAvailabilityTools() {
       });
       
       // Test 2: Get specific property availability via MCP
-      console.log('\n\n📊 Test 2: Getting specific property availability via MCP...');
+      console.log('\n\n📊 Test 2: Getting property availability by dates via MCP...');
       const propertyResult = await getPropertyAvailabilityByDatesTool.execute({
         context: { 
-          propertyName: 'Apartamente',
           checkinDate: '2025-01-15',
           checkoutDate: '2025-01-20'
         }

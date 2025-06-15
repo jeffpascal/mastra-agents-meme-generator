@@ -97,7 +97,6 @@ async function testMCPServer() {
       params: {
         name: 'get_property_availability_by_dates',
         arguments: {
-          propertyName: 'Apartamente',
           checkinDate: '2025-01-15',
           checkoutDate: '2025-01-20',
           refresh: true

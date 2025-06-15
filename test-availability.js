@@ -42,14 +42,17 @@ async function testAvailabilityTools() {
         }
       });
       
-      // Test 2: Get specific property availability
-      console.log('\n\n📊 Test 2: Getting specific property availability...');
+      // Test 2: Get property availability by dates
+      console.log('\n\n📊 Test 2: Getting property availability by dates...');
       const propertyResult = await getPropertyAvailabilityTool.execute({
-        context: { propertyName: 'Apartamente' }
+        context: { 
+          checkinDate: '2025-01-15',
+          checkoutDate: '2025-01-20'
+        }
       });
       
       if (propertyResult.success && propertyResult.data) {
-        console.log(`✅ Found property: ${propertyResult.data.name}`);
+        console.log(`✅ Found property data for the date range`);
         console.log(`   Property ID: ${propertyResult.data.beds24PropId}`);
         console.log(`   Number of room availabilities: ${propertyResult.data.availabilities.length}`);
       } else {
