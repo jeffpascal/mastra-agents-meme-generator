@@ -311,6 +311,38 @@ function createAvailabilitySummary(rawData: any): string[] {
   try {
     console.log('🔍 [DEBUG] Raw data received:', JSON.stringify(rawData, null, 2));
     
+    // Extract date range information if available
+    let dateRangeInfo = '';
+    if (rawData.checkinDate && rawData.checkoutDate) {
+      const checkinDate = new Date(rawData.checkinDate);
+      const checkoutDate = new Date(rawData.checkoutDate);
+      const formatOptions: Intl.DateTimeFormatOptions = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      };
+      const startFormatted = checkinDate.toLocaleDateString('en-US', formatOptions);
+      const endFormatted = checkoutDate.toLocaleDateString('en-US', formatOptions);
+      dateRangeInfo = `📅 Availability Period: ${startFormatted} to ${endFormatted}`;
+    } else {
+      // Default to next 30 days if no specific dates provided
+      const today = new Date();
+      const futureDate = new Date(today);
+      futureDate.setDate(today.getDate() + 30);
+      const formatOptions: Intl.DateTimeFormatOptions = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      };
+      const startFormatted = today.toLocaleDateString('en-US', formatOptions);
+      const endFormatted = futureDate.toLocaleDateString('en-US', formatOptions);
+      dateRangeInfo = `📅 Availability Period: ${startFormatted} to ${endFormatted} (next 30 days)`;
+    }
+    
+    // Add period information at the beginning
+    summary.push(dateRangeInfo);
+    summary.push(''); // Empty line for readability
+    
     // Handle both direct array format and wrapped format
     const propertiesData = Array.isArray(rawData) ? rawData : (rawData.propertiesData || rawData.data);
     
@@ -320,7 +352,7 @@ function createAvailabilitySummary(rawData: any): string[] {
     
     if (!Array.isArray(propertiesData)) {
       console.log('❌ [DEBUG] Properties data is not an array, returning error');
-      return ['❌ Invalid data format - expected array of properties'];
+      return [dateRangeInfo, '', '❌ Invalid data format - expected array of properties'];
     }
     
     console.log('🔍 [DEBUG] Processing', propertiesData.length, 'properties');
@@ -386,10 +418,15 @@ function createAvailabilitySummary(rawData: any): string[] {
     console.log(`🔍 [DEBUG] Final summary length:`, summary.length);
     console.log(`🔍 [DEBUG] Final summary:`, summary);
     
-    if (summary.length === 0) {
-      console.log('⚠️ [DEBUG] No summary items generated, returning default message');
-      summary.push('No availability data found for any properties');
+    // If no availability data was found (only date info and empty line)
+    if (summary.length <= 2) {
+      console.log('⚠️ [DEBUG] No summary items generated, adding default message');
+      summary.push('No availability data found for any properties in this period');
     }
+    
+    // Add note about querying different dates
+    summary.push(''); // Empty line for readability
+    summary.push('💡 Note: For availability outside this date range, please use the availability tool again with your desired dates.');
     
   } catch (error) {
     console.error('❌ [DEBUG] Error creating availability summary:', error);
