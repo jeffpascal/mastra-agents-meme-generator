@@ -436,7 +436,7 @@ export const getPropertyAvailabilityByDatesTool = createTool({
     checkinDate: z.string().describe('Check-in date in YYYY-MM-DD format'),
     checkoutDate: z.string().describe('Check-out date in YYYY-MM-DD format'),
     refresh: z.boolean().optional().describe('Forces fresh data generation (default: false)'),
-    humanReadable: z.boolean().optional().describe('Set to true to return human-readable summary instead of raw data (default: false)'),
+    humanReadable: z.boolean().optional().describe('Set to true to return human-readable summary instead of raw data (default: true)'),
   }),
   outputSchema: z.object({
     success: z.boolean().describe('Whether the request was successful'),
